@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# builds
+client/dist/
+client/dist-smoke/
+server/dist/
+
+# runtime data (SQLite db, uploads, generated server secrets)
+server/.data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# environment
+.env
+.env.local
+.env.*.local
+
+# logs / editor / os
+*.log
+npm-debug.log*
+.DS_Store
+.idea/
+.vscode/
+*.tsbuildinfo

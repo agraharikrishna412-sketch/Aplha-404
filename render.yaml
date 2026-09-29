@@ -1,0 +1,67 @@
+# Render blueprint — one Web Service plus one managed PostgreSQL database.
+#
+# Vroqn Nexus deploys as a SINGLE service on purpose: the Express server both serves `/api/*` and the
+# built client from `client/dist`, so the browser talks to one origin. That means no CORS
+# configuration, no separate frontend host, and httpOnly session cookies work without `SameSite=None`.
+#
+# First deploy:
+#   1. Push this repository to GitHub.
+#   2. Render → New → Blueprint → pick the repository.
+#   3. When prompted, fill the two `sync: false` values (see docs/DEPLOYMENT.md §3).
+#
+# Everything else — the database URL, the session secret, migrations, and the client build — is wired
+# up here, so there is no dev-only step that has to be remembered by hand.
+
+services:
+  - type: web
+    name: vroqn-nexus
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    # `npm ci` needs the committed lockfile; the build step compiles the client bundle AND the server.
+    buildCommand: npm ci --include=dev && npm run build
+    # `npm start` runs the compiled server, which migrates the database on boot before listening.
+    startCommand: npm start
+    # Render pings this until it returns 200 before routing traffic to the new instance.
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Node 22 is the current LTS and satisfies the repo's "engines.node": ">=20".
+      - key: NODE_VERSION
+        value: "22"
+      # Postgres in production. SQLite is refused in production unless ALLOW_SQLITE_IN_PROD=1,
+      # because Render's disk is ephemeral and every session + encrypted API key would vanish on
+      # redeploy. This is the single most important line in the file.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vroqn-nexus-db
+          property: connectionString
+      # Session signing key. Only its length is checked (>= 32 characters), so a generated value is safe.
+      - key: JWT_SECRET
+        generateValue: true
+      # 32-byte key that encrypts each student's provider API keys at rest.
+      # MUST be set by hand: the server validates it as exactly 64 hex characters, which a generic
+      # generated value does not satisfy. Generate with:  openssl rand -hex 32
+      - key: VROQN_MASTER_KEY
+        sync: false
+      # Comma-separated allowlist that unlocks /arena/admin. Leave EMPTY for a student-only
+      # deployment — nobody can promote themselves, and an empty value is a valid configuration.
+      - key: ARENA_ADMIN_EMAILS
+        sync: false
+      # Leave DEMO_MODE unset: it defaults to OFF in production, and the server refuses to boot if it
+      # is forced on. Sample answers must never be served as if a model produced them.
+      - key: AI_MAX_ATTEMPTS
+        value: "8"
+      - key: AI_ATTEMPT_TIMEOUT_MS
+        value: "45000"
+
+databases:
+  - name: vroqn-nexus-db
+    plan: free
+    region: singapore
+    databaseName: vroqn
+    user: vroqn
+    postgresMajorVersion: "16"

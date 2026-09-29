@@ -1,0 +1,37 @@
+{
+  "name": "vroqn-nexus",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Vroqn Nexus \u2014 AI-powered student learning workspace",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "build": "npm run build --workspace client && npm run build --workspace server",
+    "start": "npm run start --workspace server",
+    "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace client",
+    "test": "npm run test --workspace server",
+    "smoke:api": "bash scripts/api-smoke.sh",
+    "smoke:ui": "npm run build:smoke --workspace client && npm run smoke:ui --workspace client",
+    "smoke:browser": "node scripts/browser-check.mjs",
+    "smoke:flows": "bash scripts/flow-check.sh",
+    "smoke:ownership": "node scripts/ownership-check.mjs",
+    "smoke:arena-organiser": "node scripts/arena-organiser-check.mjs",
+    "smoke:community-paper": "node scripts/check-community-paper.mjs",
+    "scan:site": "node scripts/scan-site.mjs",
+    "seed:communities": "node scripts/seed-demo-communities.mjs",
+    "seed:arena": "npm run seed:arena --workspace server",
+    "make:admin": "node scripts/make-admin.mjs",
+    "make:student": "node scripts/make-student.mjs",
+    "who:admin": "node scripts/who-admin.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  }
+}

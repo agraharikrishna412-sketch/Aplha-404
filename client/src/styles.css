@@ -1,0 +1,1353 @@
+@import 'tailwindcss';
+
+/* ============================================================================
+   Vroqn Nexus — design tokens
+   Mechanical dark: deep black canvas, near-black surfaces, cyan accents.
+   Kept deliberately restrained: glow is used for state, never decoration.
+   ========================================================================== */
+
+@theme {
+  --color-bg: #05070a;
+  --color-surface: #0a0f14;
+  --color-card: #0e151c;
+  --color-card-hover: #121b23;
+  /*
+   * `elevated` is the surface for anything that floats *above* the page: dropdown panels, portalled
+   * listboxes, popovers. It was used by the picker panel before it was ever defined, so
+   * `bg-[var(--color-elevated)]` resolved to nothing and the list rendered fully transparent — the
+   * page behind it read through the options. A floating surface must be opaque by definition.
+   */
+  --color-elevated: #101a22;
+  --color-border: #1c2a33;
+  --color-border-strong: #273a46;
+  --color-primary: #00e5ff;
+  --color-primary-soft: #22d3ee;
+  --color-primary-dim: #0e7490;
+  --color-text: #f5f7fa;
+  --color-muted: #94a3b8;
+  /*
+   * `muted-dim` carries most of the small print in the product — uppercase labels, hints, legends,
+   * field help — and it is used at 11-12px. The previous value (#64748b) measured 3.86:1 against a
+   * card, below the 4.5:1 WCAG AA threshold for small text. #8494a8 measures 5.94:1 and still reads
+   * as a clear step below `muted` (7.17:1), so the hierarchy survives. One token, 99 call sites.
+   */
+  /*
+   * Turn 9: lifted from #8494a8 (5.94:1 on card) to 7.07:1. The small caption lines — the detail under
+   * every card heading — were legible in a lab and washed out on a phone at 12% brightness, which is
+   * the screen these students actually use.
+   */
+  --color-muted-dim: #93a2b5;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  --radius-card: 14px;
+  --shadow-glow: 0 0 0 1px rgba(0, 229, 255, 0.28), 0 8px 30px -12px rgba(0, 229, 255, 0.35);
+
+  --animate-rise: rise 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+  --animate-fade: fade 0.25s ease-out;
+  --animate-blink: blink 1.1s steps(2, start) infinite;
+  --animate-spin-slow: spin 2.4s linear infinite;
+
+  /* Elevation. Three steps only — a dashboard with five shadow recipes reads as noise. */
+  --shadow-card: 0 1px 0 0 rgba(255, 255, 255, 0.02) inset, 0 10px 30px -22px rgba(0, 0, 0, 0.9);
+  --shadow-lift: 0 1px 0 0 rgba(255, 255, 255, 0.03) inset, 0 18px 40px -24px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(0, 229, 255, 0.06);
+  --shadow-float: 0 24px 60px -28px rgba(0, 0, 0, 0.98), 0 0 0 1px rgba(28, 42, 51, 0.9);
+
+  /* One motion curve for the whole product, so transitions feel related rather than assembled. */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* Ambient motion is deliberately slow: it should be felt, not watched. */
+  --spin-orbit-slow: 52s;
+  --spin-orbit-mid: 34s;
+  --spin-orbit-fast: 22s;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.65;
+  }
+  70% {
+    transform: scale(1.65);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.65);
+    opacity: 0;
+  }
+}
+
+/* ============================================================================
+   Knowledge Core — hero animation.
+   Pure CSS on SVG groups. Only `transform` and `opacity` are animated, so each
+   layer is composited on the GPU and no JavaScript runs per frame. Every 100%
+   keyframe is the element's resting state, which means the reduced-motion
+   fallback (and any browser that drops an animation) still renders a complete,
+   legible composition rather than a half-drawn one.
+   ========================================================================== */
+
+@keyframes core-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.035);
+    opacity: 1;
+  }
+}
+
+@keyframes orbit-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-rotate-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/*
+ * Knowledge travelling inward.
+ *
+ * The offset is exactly three dash periods (0.1 + 21.9 = 22), so the loop is seamless — an offset that
+ * is not a whole multiple makes the particles visibly jump every time the animation restarts.
+ */
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -66;
+  }
+}
+
+/*
+ * Scale, not the SVG `r` property. `r` is animatable via CSS in Chromium and Firefox but not
+ * consistently in Safari, and a node that silently stops pulsing is worse than one that never did.
+ * `transform` works everywhere.
+ */
+@keyframes node-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.78;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+@keyframes halo-breathe {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.06);
+  }
+}
+
+/* The progress arc sweeps once and settles — progress, not a loading spinner. */
+@keyframes progress-arc {
+  from {
+    stroke-dashoffset: var(--arc-length);
+  }
+  to {
+    stroke-dashoffset: var(--arc-rest);
+  }
+}
+
+@keyframes drifts {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -7px, 0);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes bar-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.6;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+
+  /* Visible, consistent focus for keyboard users (spec §24). */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /*
+   * A grid item defaults to `min-width: auto`, which means it will not shrink below the min-content
+   * width of its own contents — so one wide child (a long select option, an unbreakable string) pushes
+   * the whole page wider than a phone screen, and `overflow-x: hidden` then *clips* it rather than
+   * letting anyone scroll to it. Tailwind's `grid-cols-*` already sizes its tracks with minmax(0,1fr),
+   * so this only brings the item back in line with its own track. Text wraps instead of overflowing.
+   */
+  .grid > * {
+    min-width: 0;
+  }
+
+  ::selection {
+    background: rgba(0, 229, 255, 0.28);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #070c11;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1f2f3a;
+    border-radius: 999px;
+    border: 2px solid #070c11;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2b4351;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* Textareas and inputs should never trigger iOS zoom. */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  @media (min-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: 15px;
+    }
+  }
+}
+
+@layer components {
+  /* A faint mechanical grid — texture without noise. */
+  .vroqn-grid-bg {
+    background-image:
+      radial-gradient(1200px 600px at 15% -10%, rgba(0, 229, 255, 0.07), transparent 60%),
+      linear-gradient(to right, rgba(28, 42, 51, 0.55) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(28, 42, 51, 0.55) 1px, transparent 1px);
+    background-size:
+      auto,
+      46px 46px,
+      46px 46px;
+  }
+
+  .vroqn-ring-pulse::before,
+  .vroqn-ring-pulse::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 229, 255, 0.5);
+    animation: ripple 1.9s ease-out infinite;
+  }
+  .vroqn-ring-pulse::after {
+    animation-delay: 0.85s;
+  }
+
+  .vroqn-sweep {
+    position: relative;
+    overflow: hidden;
+  }
+  .vroqn-sweep::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    width: 30%;
+    background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.32), transparent);
+    animation: bar-sweep 1.5s ease-in-out infinite;
+  }
+
+  /* ---------------------------------------------------------- surfaces */
+
+  /*
+   * Glass and metal are used sparingly — a modal, the hero core housing, a sticky
+   * header — never on every card. Both are one paint layer, no blur-heavy stacks,
+   * so they stay cheap on a mid-range phone.
+   */
+  .vroqn-glass {
+    background: linear-gradient(180deg, rgba(18, 27, 35, 0.72), rgba(10, 15, 20, 0.72));
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+  }
+
+  .vroqn-metal {
+    background-image: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.045) 0%,
+      rgba(255, 255, 255, 0.012) 38%,
+      rgba(0, 0, 0, 0.16) 100%
+    );
+  }
+
+  /* A hairline of light along the top edge — the "machined" detail. */
+  .vroqn-edge {
+    position: relative;
+  }
+  .vroqn-edge::before {
+    content: '';
+    position: absolute;
+    inset-inline: 12%;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.5), transparent);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  /* --------------------------------------------------- knowledge core */
+
+  .core-orbit-slow {
+    animation: orbit-rotate var(--spin-orbit-slow) linear infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .core-orbit-mid {
+    animation: orbit-rotate-reverse var(--spin-orbit-mid) linear infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .core-orbit-fast {
+    animation: orbit-rotate var(--spin-orbit-fast) linear infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .core-breathe {
+    animation: core-breathe 6.5s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .core-halo {
+    animation: halo-breathe 7.5s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .core-flow {
+    animation: flow-dash 3.4s linear infinite;
+    stroke-dasharray: 5 11;
+  }
+
+  .core-node {
+    animation: node-pulse 4.2s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .core-drift {
+    animation: drifts 8s ease-in-out infinite;
+  }
+
+  /*
+   * Loop labels ride the orbit at staggered delays so the seven steps read in
+   * sequence — this is what turns the graphic into an explanation of the product.
+   */
+  .core-label {
+    animation: fade 0.6s var(--ease-out) both;
+  }
+
+  /* --------------------------------------------------- micro-interactions */
+
+  /* Route change: a short lift-and-fade, applied once per page, not per element. */
+  .vroqn-page-enter {
+    /*
+     * `backwards`, not `both`. With `both` the final keyframe persists, and a lingering transform —
+     * even an identity one — makes this element the containing block for every `position: fixed`
+     * descendant. Overlays are portalled to <body> so they no longer depend on this, but a page
+     * wrapper that keeps a transform forever is a trap for anything added later.
+     */
+    animation: rise 0.32s var(--ease-out) backwards;
+  }
+
+  .vroqn-skeleton {
+    position: relative;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.045);
+  }
+  .vroqn-skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+
+  /* Interactive rows/cards: the lift is 1px and the border warms. Subtle on purpose. */
+  .vroqn-lift {
+    transition:
+      transform 0.18s var(--ease-out),
+      box-shadow 0.18s var(--ease-out),
+      border-color 0.18s var(--ease-out),
+      background-color 0.18s var(--ease-out);
+  }
+  .vroqn-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
+    border-color: var(--color-border-strong);
+  }
+  .vroqn-lift:active {
+    transform: translateY(0);
+  }
+
+  /*
+   * Touch target expansion.
+   *
+   * Dense toolbars (Arena review filters, exam palettes, settings rows) need to stay visually
+   * compact on desktop, but a 32px button is below the ~40px minimum a thumb can reliably hit. A
+   * transparent ::after grows the hit area to 40px on coarse pointers only, so desktop keeps its
+   * density and phones get a comfortable target — without re-laying-out anything.
+   */
+  .vroqn-tap {
+    position: relative;
+  }
+  @media (pointer: coarse) {
+    .vroqn-tap::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 40px;
+      transform: translateY(-50%);
+    }
+  }
+
+  /* Scrollable code/output areas keep their own scroll on mobile. */
+  .vroqn-scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@layer utilities {
+  /* Numbers that change in place must not reflow the layout around them. */
+  .vroqn-tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  .vroqn-text-balance {
+    text-wrap: balance;
+  }
+
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Alias used by VroqnTabs: a tab strip scrolls sideways on a phone without showing a bar. */
+  .vroqn-no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .vroqn-no-scrollbar {
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}
+
+/*
+ * Communities flow (§49).
+ *
+ * Five static cards and one travelling highlight. The highlight is a single element animated with
+ * `transform`, so the browser can composite it on the GPU and no layout work happens per frame; the
+ * cards themselves never move. Under reduced motion (below, and via `data-motion`) it is hidden and
+ * the numbered cards carry the sequence on their own.
+ */
+.vroqn-community-sweep {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .vroqn-community-flow {
+    isolation: isolate;
+  }
+
+  .vroqn-community-sweep {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: -1px;
+    height: 2px;
+    width: 22%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+    opacity: 0.75;
+    animation: vroqn-community-flow 7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+    pointer-events: none;
+  }
+}
+
+@keyframes vroqn-community-flow {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(354%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Respect the OS "reduce motion" setting (spec §24). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /*
+   * Ambient decoration is switched off outright rather than fast-forwarded, so the Knowledge Core
+   * renders as a still, complete diagram. Every orbit sits at its 0deg keyframe and every pulse at
+   * its resting scale, which is a coherent picture — not a frozen frame mid-motion.
+   */
+  .core-orbit-slow,
+  .core-orbit-mid,
+  .core-orbit-fast,
+  .core-breathe,
+  .core-halo,
+  .core-flow,
+  .core-node,
+  .core-drift,
+  .vroqn-ring-pulse::before,
+  .vroqn-ring-pulse::after,
+  .vroqn-sweep::after,
+  .vroqn-skeleton::after {
+    animation: none !important;
+  }
+
+  .core-label {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  .vroqn-community-sweep {
+    display: none !important;
+  }
+
+  .vroqn-lift:hover {
+    transform: none;
+  }
+}
+
+/*
+ * Devices that report themselves as low-powered render the same still composition. The tier is chosen
+ * once from `prefers-reduced-motion`, `deviceMemory` and `hardwareConcurrency` (see useMotionTier),
+ * and exposed as an attribute so the CSS and the markup agree without a second media query.
+ */
+[data-motion='static'] .core-orbit-slow,
+[data-motion='static'] .core-orbit-mid,
+[data-motion='static'] .core-orbit-fast,
+[data-motion='static'] .core-breathe,
+[data-motion='static'] .core-halo,
+[data-motion='static'] .core-flow,
+[data-motion='static'] .core-node,
+[data-motion='static'] .core-drift {
+  animation: none !important;
+}
+
+[data-motion='reduced'] .core-flow,
+[data-motion='reduced'] .core-drift {
+  animation: none !important;
+}
+
+@media (min-width: 640px) {
+  [data-motion='static'] .vroqn-community-sweep,
+  [data-motion='reduced'] .vroqn-community-sweep {
+    display: none !important;
+  }
+}
+
+/* ============================================================================
+   Study Core — the dashboard hero animation.
+   A tilted gyroscope of knowledge: seven subject discs on a 3D orbit, two
+   counter-rotating wireframe spheres inside, a measuring dial outside.
+
+   Everything here animates `transform` and `opacity` only, on a handful of
+   layers, so the compositor does the work and no JavaScript runs per frame.
+   Every keyframe returns to its resting pose, which means the still version is
+   a complete drawing rather than a half-built diagram.
+   ========================================================================== */
+
+.vroqn-core {
+  /* The component is placed by whoever renders it; this is the containing block for everything
+     inside, and the reason a caller can hand it a height and nothing else. */
+  position: relative;
+  display: block;
+  --core-face: 62deg;
+  /*
+   * The rings are ellipses, not circles: 1.25× taller than they are deep.
+   *
+   * This is the fix for the last real geometry problem. With true circular orbits the two rings came
+   * within 6px of each other at the flat sides of the ellipse — a phone showed overlapping chips. Two
+   * levers existed: flatten the camera until the ellipse became a circle (which throws away the 3D), or
+   * stretch the rings until there is room (which keeps it). Stretched: worst-case clearance went from
+   * 6.3px to 19.8px, and the depth stayed, because the perspective still scales every chip by its real
+   * distance from the camera.
+   */
+  --core-stretch: 1.81;
+  /*
+   * Keys:
+   *   * `--core-face: 62deg` is the plane both rings lie in. On screen the vertical axis of that plane
+   *     is squashed to about 0.45 of its length (measured, not assumed: 88px of screen height for a
+   *     229px plane radius before this change). Every ring's *plane* radii therefore look ~2x taller
+   *     than they render, which is why the numbers below are much bigger than what a phone shows.
+   *   * `--core-stretch` (1.81) is the shape of the inner ring and the instrument dial.
+   *   * `--core-stretch-outer` (1.79) is the shape of the outer ring — flatter-looking and taller, which
+   *     is what buys the vertical corridor between the two rings on a phone.
+   */
+  --core-stretch-outer: 1.79;
+  /*
+   * Box size per breakpoint, with the real maths kept here so "bigger" never becomes "clipped":
+   * the widest thing drawn is the orbit plus half a disc (2×152 + 48 = 352px), times 1.16 for the
+   * perspective growth of the nearest disc — and the result stays inside the card at every width.
+   */
+  --core-scale: 0.76;
+  perspective: 1000px;
+  perspective-origin: 50% 50%;
+}
+
+@media (min-width: 360px) {
+  .vroqn-core { --core-scale: 0.86; }
+}
+
+@media (min-width: 420px) {
+  .vroqn-core { --core-scale: 0.88; }
+}
+
+@media (min-width: 640px) {
+  .vroqn-core { --core-scale: 0.96; }
+}
+
+@media (min-width: 1024px) {
+  .vroqn-core { --core-scale: 1.12; }
+}
+
+.vroqn-core__viewport {
+  position: absolute;
+  inset: 0;
+}
+
+.vroqn-core__bloom {
+  position: absolute;
+  inset: 14%;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(0, 229, 255, 0.22), rgba(0, 229, 255, 0.06) 46%, transparent 68%);
+  filter: blur(6px);
+  animation: core-breathe 6.5s ease-in-out infinite;
+}
+
+.vroqn-core__stage {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  /*
+   * 4° of camera tilt on top of the plane's 62°. The number is not decorative: the flatter the total
+   * tilt, the less the discs bunch up at the top and bottom of the ellipse — and 66° total is what the
+   * spacing solver settled on. At 79°, where this started, the two rings' chips came within 24px of
+   * each other on a phone.
+   */
+  transform: rotateX(calc(-17deg + var(--core-tilt-x, 0deg))) rotateY(var(--core-tilt-y, 0deg)) scale(var(--core-scale));
+  transition: transform 380ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  animation: core-idle 22s ease-in-out infinite;
+}
+
+/*
+ * Hold still when the student reaches for it.
+ *
+ * A tap target that is moving is a tap target that gets missed, and this one carries seven real
+ * links. The orbit (and the dial) pause while the pointer is over a disc or the keyboard is inside
+ * the assembly; nothing else changes, so the pause reads as "it noticed me" rather than as a broken
+ * animation. Motion resumes on pointer-leave / blur.
+ *
+ * Two details learned the hard way:
+ *  - `:hover` cannot be written on `.vroqn-core` itself, because the root is `pointer-events: none`
+ *    (deliberately: the artwork must never eat a tap) and an element that receives no pointer events
+ *    is never in `:hover`. `:has()` asks the real question — "is a disc hovered?" — and works
+ *    regardless of who owns the events.
+ *  - On a touch screen there is no hover to pause on, so the orbit is simply run much slower there
+ *    (below). Aiming at a target that drifts 2px a second is easy; aiming at one that drifts 30px a
+ *    second is a lottery.
+ */
+.vroqn-core:has(.vroqn-core__badge:hover) .vroqn-core__item,
+.vroqn-core:has(.vroqn-core__badge:focus-visible) .vroqn-core__item,
+.vroqn-core:focus-within .vroqn-core__item,
+.vroqn-core:has(.vroqn-core__badge:hover) .vroqn-core__dial,
+.vroqn-core:has(.vroqn-core__badge:focus-visible) .vroqn-core__dial,
+.vroqn-core:focus-within .vroqn-core__dial,
+.vroqn-core--held .vroqn-core__item,
+.vroqn-core--held .vroqn-core__dial {
+  animation-play-state: paused;
+}
+
+/* No hover to pause with: slow the orbit down so the discs stay easy to hit. */
+@media (hover: none) {
+  .vroqn-core__item { animation-duration: 64s; }
+  .vroqn-core__dial { animation-duration: 150s; }
+}
+
+.vroqn-core--still .vroqn-core__stage,
+.vroqn-core--still .vroqn-core__bloom,
+.vroqn-core--still * {
+  animation: none !important;
+}
+
+.vroqn-core--still .vroqn-core__item {
+  transform: translate3d(var(--still-x, 0px), var(--still-y, 0px), 0) rotateX(calc(-1 * var(--core-face)));
+}
+
+/*
+ * Ground plane. Two static gradients: a horizon glow that fades out at both ends, and a soft
+ * elliptical shadow under the assembly. They cost nothing (no animation) and they are the single
+ * cheapest thing that makes a CSS object sit *on* a surface instead of floating in a void.
+ */
+.vroqn-core__horizon {
+  position: absolute;
+  left: 50%;
+  top: 74%;
+  width: 78%;
+  height: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(to right, transparent, rgba(0, 229, 255, 0.4), transparent);
+  box-shadow: 0 0 18px 1px rgba(0, 229, 255, 0.22);
+}
+
+.vroqn-core__ground {
+  position: absolute;
+  left: 50%;
+  top: 74%;
+  width: 54%;
+  height: 46px;
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(0, 229, 255, 0.2), rgba(0, 229, 255, 0.05) 46%, transparent 72%);
+  filter: blur(7px);
+}
+
+/*
+ * Atmospheric dust: a wide, very faint elliptical haze inside the orbit plane, drawn with one
+ * gradient. It is what stops the rings reading as wireframes floating in a void.
+ */
+.vroqn-core__dust {
+  position: absolute;
+  left: -186px;
+  top: -366px;
+  width: 372px;
+  height: 732px;
+  border-radius: 9999px;
+  background: radial-gradient(ellipse at 50% 50%, rgba(0, 229, 255, 0.09) 42%, rgba(0, 229, 255, 0.035) 66%, transparent 78%);
+}
+
+/* ---------------------------------------------------------------- orbits --- */
+
+.vroqn-core__orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+
+/*
+ * The tilted plane the discs travel in. `preserve-3d` plus the parent's
+ * rotateX is what turns a flat circle of positions into an ellipse with real
+ * depth — the discs at the front are nearer, larger and drawn over the core.
+ */
+/*
+ * Both rings lie in the same tilted plane. The inner one carries fewer, smaller discs (r=86 against
+ * r=152) and turns the other way, which is what makes the pair read as a gyroscope rather than as a
+ * single hoop with clutter in the middle. Radii and phases were solved numerically — see the note in
+ * StudyCore.tsx: the closest two badge centres anywhere are 54.8px apart, so no two chips can ever be
+ * tapped by mistake.
+ */
+.vroqn-core__orbit--outer,
+.vroqn-core__orbit--inner {
+  transform: rotateX(var(--core-face));
+}
+
+.vroqn-core__ring-items {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+
+/*
+ * The track each ring rides: exactly the radius its keyframes use, so the dashed line sits under the
+ * chips rather than near them. `[data-ring]` also carries the dashed inner guide of the old design,
+ * which is now the inner ring's own track rather than a separate decoration.
+ */
+.vroqn-core__track {
+  position: absolute;
+  border-radius: 9999px;
+}
+
+.vroqn-core__track[data-ring='outer'] {
+  left: -172px;
+  top: -358px;
+  width: 344px;
+  height: 716px;
+  border: 1px solid rgba(0, 229, 255, 0.22);
+  box-shadow: 0 0 22px -8px rgba(0, 229, 255, 0.35) inset;
+}
+
+.vroqn-core__track[data-ring='inner'] {
+  left: -95px;
+  top: -172px;
+  width: 190px;
+  height: 344px;
+  border: 1px dashed rgba(0, 229, 255, 0.22);
+  animation: core-spin 40s linear infinite reverse;
+}
+
+/*
+ * One disc. The whole path is a single keyframe animation and each disc is
+ * phase-shifted by `animation-delay`, so sixteen hand-written samples drive all
+ * seven of them; the trailing `rotateX(-62deg)` cancels the plane's tilt so the
+ * icon and its label stay upright the entire way round.
+ *
+ * No `scale(...)` in these keyframes on purpose. The plane is tilted 62°, so a disc's y position
+ * becomes a real z offset — about ±134px at this orbit — and the 1000px perspective on the root
+ * projects that into size: the disc in front genuinely IS larger and the one behind genuinely IS
+ * smaller, because that is what a camera does. The old version faked it with a hand-tuned 0.82–1.0
+ * scale on top of the real projection, which fought itself and flattened the depth.
+ *
+ * `opacity` rides along as atmospheric fade: the far half of the orbit dims, the near half is full
+ * strength. It is the oldest trick in the book and it costs one composited property.
+ */
+.vroqn-core__item {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  animation-duration: var(--ring-duration, 30s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-delay: calc(var(--i) * -1 * var(--ring-duration, 30s) / var(--count));
+}
+
+/*
+ * Both rings turn at the SAME speed, in the SAME direction.
+ *
+ * That is not a stylistic choice, it is a correctness one. The first version counter-rotated the inner
+ * ring at a different period, which meant the relative angle between an inner disc and an outer one
+ * swept through every value — and when an inner disc passed "behind" an outer one, the two chips were
+ * 24px apart at the top of the ellipse and overlapped. Measured, not guessed: the gap is now frozen at
+ * 55px and stays there for the whole cycle.
+ *
+ * The sense of two independent gyroscopes is carried by the parts that cannot be mis-tapped: the tick
+ * dial turns one way and the dashed inner track turns the other.
+ */
+.vroqn-core__orbit--outer,
+.vroqn-core__orbit--inner { --ring-duration: 30s; }
+.vroqn-core__orbit--outer .vroqn-core__item { animation-name: core-orbit-outer; }
+.vroqn-core__orbit--inner .vroqn-core__item { animation-name: core-orbit-inner; }
+
+/*
+ * The disc — a real link.
+ *
+ * Two classes on the selector on purpose: `.vroqn-tap` (an existing utility that expands the touch
+ * hit area to 40px on coarse pointers) sets `position: relative`, and this component needs
+ * `absolute`. Same specificity, later rule wins — so the position is declared with a selector that
+ * outranks it rather than by hoping for stylesheet order.
+ */
+.vroqn-core .vroqn-core__badge {
+  position: absolute;
+  left: -22px;
+  top: -22px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 229, 255, 0.34);
+  background: linear-gradient(180deg, rgba(20, 32, 42, 0.97), rgba(7, 12, 17, 0.97));
+  color: var(--color-primary);
+  box-shadow:
+    0 14px 30px -14px rgba(0, 229, 255, 0.6),
+    0 2px 6px -2px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+  /* Required for the link to receive the tap: the root switched pointer events off. */
+  pointer-events: auto;
+  transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1), border-color 200ms, box-shadow 200ms;
+}
+
+.vroqn-core .vroqn-core__badge:hover {
+  transform: scale(1.09);
+  border-color: rgba(0, 229, 255, 0.75);
+  box-shadow:
+    0 18px 38px -12px rgba(0, 229, 255, 0.75),
+    0 2px 6px -2px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.vroqn-core .vroqn-core__badge:active {
+  transform: scale(1.02);
+}
+
+.vroqn-core .vroqn-core__badge:hover .vroqn-core__label,
+.vroqn-core .vroqn-core__badge:focus-visible .vroqn-core__label {
+  color: var(--color-text);
+  background: rgba(5, 10, 14, 0.85);
+}
+
+.vroqn-core .vroqn-core__badge:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+/* The inner ring's discs are smaller: 40px chips that still clear the 40px touch floor. */
+.vroqn-core__orbit--inner .vroqn-core__badge {
+  left: -17px;
+  top: -17px;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+}
+
+.vroqn-core__orbit--inner .vroqn-core__label {
+  top: 38px;
+  /*
+   * The six personal chips sit closer together than the outer eight, so their names would cross each
+   * other and the core. They appear on hover or keyboard focus — the icon and the accessible name
+   * carry the meaning until then, and the name appearing *is* the hover cue.
+   */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease, color 200ms;
+}
+
+.vroqn-core__orbit--inner .vroqn-core__badge:hover .vroqn-core__label,
+.vroqn-core__orbit--inner .vroqn-core__badge:focus-visible .vroqn-core__label {
+  opacity: 1;
+}
+
+.vroqn-core__label {
+  position: absolute;
+  top: 47px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  /* The product's 11px floor applies here too — and this text is now a real, clickable name. */
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+  /* A chip, not bare text: two of the seven discs cross the lit core, and text on a glow is unreadable. */
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(4, 8, 12, 0.78);
+  backdrop-filter: blur(2px);
+  transition: color 200ms, background-color 200ms;
+}
+
+/* ----------------------------------------------------------------- core ---- */
+
+/*
+ * The glass shell: a single translucent sphere with a specular highlight sitting over the heart.
+ * It is what turns "a glowing dot" into "something with a surface and a light source".
+ */
+.vroqn-core__shell {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 138px;
+  height: 138px;
+  margin: -69px 0 0 -69px;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 229, 255, 0.16);
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.16), transparent 46%),
+    radial-gradient(circle at 68% 76%, rgba(0, 229, 255, 0.1), transparent 52%);
+  box-shadow: inset 0 0 40px rgba(0, 229, 255, 0.12);
+}
+
+/* Specular streak: one thin highlight across the upper-left of the glass. */
+.vroqn-core__shell::after {
+  content: '';
+  position: absolute;
+  left: 16%;
+  top: 12%;
+  width: 46%;
+  height: 26%;
+  border-radius: 9999px;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 72%);
+  transform: rotate(-24deg);
+  filter: blur(3px);
+}
+
+.vroqn-core__heart {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 74px;
+  height: 74px;
+  margin: -37px 0 0 -37px;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 36% 30%, rgba(255, 255, 255, 0.96) 0%, rgba(150, 248, 255, 0.92) 18%, rgba(0, 178, 204, 0.94) 52%, rgba(2, 74, 92, 0.96) 78%, rgba(2, 22, 30, 0.98) 100%);
+  box-shadow: 0 0 44px rgba(0, 229, 255, 0.5), inset 0 0 18px rgba(255, 255, 255, 0.22);
+  /* A hair of depth on the core keeps the far side of the orbit behind it when the discs pass. */
+  transform: translateZ(1px);
+  animation: core-pulse 4.2s ease-in-out infinite;
+}
+
+.vroqn-core__sphere {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 136px;
+  height: 136px;
+  margin: -68px 0 0 -68px;
+  transform-style: preserve-3d;
+}
+
+.vroqn-core__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 229, 255, 0.42);
+}
+
+.vroqn-core__ring--x { animation: core-spin-x 14s linear infinite; }
+.vroqn-core__ring--y { animation: core-spin-y 18s linear infinite; border-color: rgba(0, 229, 255, 0.3); }
+.vroqn-core__ring--z { animation: core-spin-z 11s linear infinite; border-color: rgba(125, 249, 255, 0.36); }
+
+/* ----------------------------------------------------------------- dial ---- */
+
+/*
+ * The dial face: 48 fine marks just outside the track, with a long mark every sixth, turning slowly.
+ * Dense enough to read as a machined scale rather than as scattered shards — which is exactly how the
+ * first, sparser version read.
+ */
+.vroqn-core__dial {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  animation: core-spin 120s linear infinite;
+}
+
+/*
+ * Each tick is placed and turned by the component so it sits on the rings' ellipse facing outwards.
+ * Scaling a circle would have stretched the marks themselves rather than moving them along the path.
+ */
+.vroqn-core__tick {
+  position: absolute;
+  left: -1px;
+  top: -3px;
+  width: 2px;
+  height: 7px;
+  border-radius: 2px;
+  background: rgba(0, 229, 255, 0.22);
+  transform-origin: 1px 3px;
+}
+
+.vroqn-core__tick[data-major='true'] {
+  height: 12px;
+  width: 2px;
+  background: rgba(0, 229, 255, 0.5);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.4);
+}
+
+/* The sweep hand: one radial line, a little brighter than the scale it crosses. */
+.vroqn-core__sweep {
+  position: absolute;
+  left: 0;
+  top: -132px;
+  width: 1px;
+  height: 132px;
+  transform-origin: 0 132px;
+  background: linear-gradient(to top, rgba(0, 229, 255, 0.05), rgba(125, 249, 255, 0.55));
+}
+
+/* The bloom lives outside the tilted stage, so it takes the responsive scale directly. */
+.vroqn-core__bloom { transform: scale(var(--core-scale)); }
+
+/* ---------------------------------------------------------------- sparks --- */
+
+.vroqn-core__sparks {
+  position: absolute;
+  inset: 0;
+}
+
+.vroqn-core__spark {
+  position: absolute;
+  /* Spread across the width so the sparks do not read as one column. */
+  left: calc(14% + var(--i) * 12%);
+  top: 80%;
+  width: 2px;
+  height: 2px;
+  border-radius: 9999px;
+  background: rgba(125, 249, 255, 0.8);
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.6);
+  animation: core-spark 3.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation-delay: calc(var(--i) * -0.55s);
+}
+
+@keyframes core-breathe {
+  0%, 100% { opacity: 0.72; transform: scale(0.97); }
+  50% { opacity: 1; transform: scale(1.03); }
+}
+
+@keyframes core-idle {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(0, 229, 255, 0)); }
+  50% { filter: drop-shadow(0 0 24px rgba(0, 229, 255, 0.18)); }
+}
+
+@keyframes core-pulse {
+  0%, 100% { transform: translateZ(1px) scale(1); }
+  50% { transform: translateZ(1px) scale(1.07); }
+}
+
+@keyframes core-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes core-spin-x {
+  from { transform: rotate3d(1, 0, 0, 0deg); }
+  to { transform: rotate3d(1, 0, 0, 360deg); }
+}
+
+@keyframes core-spin-y {
+  from { transform: rotate3d(0.25, 1, 0, 0deg); }
+  to { transform: rotate3d(0.25, 1, 0, 360deg); }
+}
+
+@keyframes core-spin-z {
+  from { transform: rotate3d(0, 0.3, 1, 0deg); }
+  to { transform: rotate3d(0, 0.3, 1, 360deg); }
+}
+
+@keyframes core-spark {
+  0% { transform: translate3d(0, 0, 0) scale(0.6); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate3d(0, -150px, 0) scale(0.2); opacity: 0; }
+}
+
+/* Outer ring: 8 discs, 45 degrees apart, full strength nearest the camera. */
+/* Outer ring: 8 discs, 45° apart, r=160. */
+/* Outer ring: 8 discs on a 320 × 400 ellipse (before the plane tilt), 45° apart. */
+/* Outer ring: 8 discs on a 320 × 400 ellipse (before the plane tilt), 45° apart. */
+/* Outer ring: 8 chips on a 316 × 458 ellipse (before the plane tilt). */
+/*
+ * Outer ring: 8 chips on a 172 x 358 ellipse in the plane — about 148 x 138 screen px at 390, and the
+ * same shape (only smaller) on a 320px phone. Drawn with 24 samples per revolution rather than one per
+ * chip: a coarse polygon makes chips ride straight chords between samples and the gaps pinch at every
+ * corner.
+ */
+@keyframes core-orbit-outer {
+    0.000% { transform: translate3d(172.0px, 0.0px, 0) rotateX(-62deg); opacity: 0.71; }
+    4.167% { transform: translate3d(166.1px, 92.7px, 0) rotateX(-62deg); opacity: 0.79; }
+    8.333% { transform: translate3d(149.0px, 179.0px, 0) rotateX(-62deg); opacity: 0.85; }
+   12.500% { transform: translate3d(121.6px, 253.1px, 0) rotateX(-62deg); opacity: 0.92; }
+   16.667% { transform: translate3d(86.0px, 310.0px, 0) rotateX(-62deg); opacity: 0.96; }
+   20.833% { transform: translate3d(44.5px, 345.8px, 0) rotateX(-62deg); opacity: 0.99; }
+   25.000% { transform: translate3d(0.0px, 358.0px, 0) rotateX(-62deg); opacity: 1.0; }
+   29.167% { transform: translate3d(-44.5px, 345.8px, 0) rotateX(-62deg); opacity: 0.99; }
+   33.333% { transform: translate3d(-86.0px, 310.0px, 0) rotateX(-62deg); opacity: 0.96; }
+   37.500% { transform: translate3d(-121.6px, 253.1px, 0) rotateX(-62deg); opacity: 0.92; }
+   41.667% { transform: translate3d(-149.0px, 179.0px, 0) rotateX(-62deg); opacity: 0.85; }
+   45.833% { transform: translate3d(-166.1px, 92.7px, 0) rotateX(-62deg); opacity: 0.79; }
+   50.000% { transform: translate3d(-172.0px, 0.0px, 0) rotateX(-62deg); opacity: 0.71; }
+   54.167% { transform: translate3d(-166.1px, -92.7px, 0) rotateX(-62deg); opacity: 0.63; }
+   58.333% { transform: translate3d(-149.0px, -179.0px, 0) rotateX(-62deg); opacity: 0.56; }
+   62.500% { transform: translate3d(-121.6px, -253.1px, 0) rotateX(-62deg); opacity: 0.5; }
+   66.667% { transform: translate3d(-86.0px, -310.0px, 0) rotateX(-62deg); opacity: 0.46; }
+   70.833% { transform: translate3d(-44.5px, -345.8px, 0) rotateX(-62deg); opacity: 0.43; }
+   75.000% { transform: translate3d(-0.0px, -358.0px, 0) rotateX(-62deg); opacity: 0.42; }
+   79.167% { transform: translate3d(44.5px, -345.8px, 0) rotateX(-62deg); opacity: 0.43; }
+   83.333% { transform: translate3d(86.0px, -310.0px, 0) rotateX(-62deg); opacity: 0.46; }
+   87.500% { transform: translate3d(121.6px, -253.1px, 0) rotateX(-62deg); opacity: 0.5; }
+   91.667% { transform: translate3d(149.0px, -179.0px, 0) rotateX(-62deg); opacity: 0.56; }
+   95.833% { transform: translate3d(166.1px, -92.7px, 0) rotateX(-62deg); opacity: 0.63; }
+  100.000% { transform: translate3d(172.0px, -0.0px, 0) rotateX(-62deg); opacity: 0.71; }
+}
+
+/*
+ * Inner ring: 6 chips on a 95 x 172 ellipse (about 82 x 67 on screen). Four clearances decided these
+ * numbers, every one of them measured rather than reasoned about: the ball's silhouette (11px clear),
+ * the corridor to the outer ring at the ellipse ends (32px at the worst phase of the lap), the gap
+ * between neighbouring inner chips (40px), and the phone's own edges.
+ */
+@keyframes core-orbit-inner {
+    0.000% { transform: translate3d(95.0px, 0.0px, 0) rotateX(-62deg); opacity: 0.71; }
+    4.167% { transform: translate3d(91.8px, 44.5px, 0) rotateX(-62deg); opacity: 0.79; }
+    8.333% { transform: translate3d(82.3px, 86.0px, 0) rotateX(-62deg); opacity: 0.85; }
+   12.500% { transform: translate3d(67.2px, 121.6px, 0) rotateX(-62deg); opacity: 0.92; }
+   16.667% { transform: translate3d(47.5px, 149.0px, 0) rotateX(-62deg); opacity: 0.96; }
+   20.833% { transform: translate3d(24.6px, 166.1px, 0) rotateX(-62deg); opacity: 0.99; }
+   25.000% { transform: translate3d(0.0px, 172.0px, 0) rotateX(-62deg); opacity: 1.0; }
+   29.167% { transform: translate3d(-24.6px, 166.1px, 0) rotateX(-62deg); opacity: 0.99; }
+   33.333% { transform: translate3d(-47.5px, 149.0px, 0) rotateX(-62deg); opacity: 0.96; }
+   37.500% { transform: translate3d(-67.2px, 121.6px, 0) rotateX(-62deg); opacity: 0.92; }
+   41.667% { transform: translate3d(-82.3px, 86.0px, 0) rotateX(-62deg); opacity: 0.85; }
+   45.833% { transform: translate3d(-91.8px, 44.5px, 0) rotateX(-62deg); opacity: 0.79; }
+   50.000% { transform: translate3d(-95.0px, 0.0px, 0) rotateX(-62deg); opacity: 0.71; }
+   54.167% { transform: translate3d(-91.8px, -44.5px, 0) rotateX(-62deg); opacity: 0.63; }
+   58.333% { transform: translate3d(-82.3px, -86.0px, 0) rotateX(-62deg); opacity: 0.56; }
+   62.500% { transform: translate3d(-67.2px, -121.6px, 0) rotateX(-62deg); opacity: 0.5; }
+   66.667% { transform: translate3d(-47.5px, -149.0px, 0) rotateX(-62deg); opacity: 0.46; }
+   70.833% { transform: translate3d(-24.6px, -166.1px, 0) rotateX(-62deg); opacity: 0.43; }
+   75.000% { transform: translate3d(-0.0px, -172.0px, 0) rotateX(-62deg); opacity: 0.42; }
+   79.167% { transform: translate3d(24.6px, -166.1px, 0) rotateX(-62deg); opacity: 0.43; }
+   83.333% { transform: translate3d(47.5px, -149.0px, 0) rotateX(-62deg); opacity: 0.46; }
+   87.500% { transform: translate3d(67.2px, -121.6px, 0) rotateX(-62deg); opacity: 0.5; }
+   91.667% { transform: translate3d(82.3px, -86.0px, 0) rotateX(-62deg); opacity: 0.56; }
+   95.833% { transform: translate3d(91.8px, -44.5px, 0) rotateX(-62deg); opacity: 0.63; }
+  100.000% { transform: translate3d(95.0px, -0.0px, 0) rotateX(-62deg); opacity: 0.71; }
+}
+
+/*
+ * A phone that asked for less motion gets the still drawing: same composition, no movement, and none
+ * of the animation cost.
+ *
+ * "Same composition" is literal here. Killing `animation` alone dropped every chip onto the centre of
+ * the stage, because the keyframe *was* what placed them — the frozen version of the planet was a
+ * stack of icons. The static positions come from `--still-x/--still-y`, written by StudyCore from the
+ * same radii the keyframes use, so the drawing is identical with the motion taken out.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .vroqn-core__stage,
+  .vroqn-core__bloom,
+  .vroqn-core__heart,
+  .vroqn-core__ring,
+  .vroqn-core__dial,
+  .vroqn-core__item,
+  .vroqn-core__orbit--b::before,
+  .vroqn-core__spark {
+    animation: none !important;
+  }
+}
+
+/* ============================================================================
+   Dashboard hero decoration.
+   Two gradients: one faint instrument grid, one cyan aurora in the top-right that
+   echoes the Study Core's light. Static — decoration must never be what makes a
+   phone warm, and nothing here is load-bearing for meaning.
+   ========================================================================== */
+
+.vroqn-hero-decor {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 88% 12%, rgba(0, 229, 255, 0.16), transparent 42%),
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 100% 100%, 34px 34px, 34px 34px;
+  /* Fade the grid out at the bottom-left so the copy sits on clean background. */
+  mask-image: radial-gradient(120% 100% at 82% 4%, #000 8%, rgba(0, 0, 0, 0.32) 46%, transparent 78%);
+  -webkit-mask-image: radial-gradient(120% 100% at 82% 4%, #000 8%, rgba(0, 0, 0, 0.32) 46%, transparent 78%);
+}
+
